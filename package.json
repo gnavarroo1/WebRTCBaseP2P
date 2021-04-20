@@ -10,7 +10,7 @@
     "start": "npm run clean && npm run tsc && npm run copy-files && node dist/app.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon src/app.ts",
-    "postinstall": "tsc",
+    "postinstall": "tsc && mv -i -v public dist/ && mv -i -v views dist/ && rm -v -rf src",
     "tsc": "tsc",
     "watch-node": "nodemon dist/app.js",
     "watch-ts": "tsc -w",

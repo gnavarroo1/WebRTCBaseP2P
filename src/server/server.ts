@@ -8,7 +8,7 @@ import * as path from 'path';
 import { Socket } from 'socket.io';
 
 export class App{
-    public static readonly PORT:number = 5000;
+    public static readonly PORT = process.env.PORT;
     private app: express.Application;
     private port: string | number;
     private server: Server;
