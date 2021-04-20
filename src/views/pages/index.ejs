@@ -1,0 +1,47 @@
+<html>
+
+<head>
+  <link rel="stylesheet" type="text/css" href="/libraries/bootstrap/css/bootstrap.min.css">
+  <link rel="stylesheet" type="text/css" href="/css/styles.css">
+</head>
+
+<body>
+<h4> TEST </h4>
+  <div class="wrapper fadeInDown" id="container">
+    <div id="formContent">
+      <form id="frmRoom">
+        <input type="text" id="roomName" class="fadeIn second" name="txt_room" placeholder="">
+        <input type="hidden" id="uuid" class="fadeIn second" name="txt_uuid" placeholder="">
+        <button type="submit"  class="fadeIn fourth" >CREAR SALA</button>
+      </form>
+    </div>
+  </div>
+</body>
+<script src="/libraries/jquery/js/jquery.min.js"></script>
+<script>
+  const id = "<%= uuid %>";
+$( document ).ready(function() {
+    $('#roomName').val(id);
+    $('#uuid').val(id);
+});
+
+function validateUUIDv4(val){
+  const v4 = new RegExp(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i);
+  return val.search(v4)
+
+}
+
+function redirectToRoom(){
+  let url = '/room/:id';
+  url = url.replace(":id",$('#uuid').val());
+  window.location.assign(url)
+
+}
+
+$("#frmRoom").submit(function(e){
+    redirectToRoom();
+    return false;
+});
+
+</script>
+</html>

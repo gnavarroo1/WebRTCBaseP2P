@@ -1,0 +1,139 @@
+<html>
+
+<head>
+    <link rel="stylesheet" type="text/css" href="/libraries/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="/css/styles.css">
+    <link rel="stylesheet" type="text/css" href="/css/fontawesome/css/all.min.css">
+</head>
+
+<body>
+<h4> 
+    <div id="idSala">
+    
+    </div> 
+</h4>
+    <div class="wrapper fadeInDown" id="container">
+        <div id="formContent">
+            <video autoplay id="localVideo" width="200" height="300"></video>
+            <div id="errorMsg">
+        </div>
+        <div id="controls">
+            <button id="btnToggleVideo" class="btn btn-circle btn-md btn-primary"><i id="videoIco" class="fas fa-video"></i></button>
+            <button id="btnToggleAudio" class="btn btn-circle btn-md btn-success"><i id="audioIco" class="fas fa-microphone"></i></button>
+        </div>
+    </div>
+</body>
+
+<script src="/libraries/jquery/js/jquery.min.js"></script>
+<script src="/js/socketIo/socket.js"></script>
+
+<script>
+    // Fetch an array of devices of a certain type
+    let nombre = "<%= uuid %>" ;
+    var socket = io.connect('http://localhost:5000'); 
+    const constraints = window.constraints = {
+        audio: true,
+        video: true,
+        width: { min: 640, ideal: 1920, max: 1920 },
+        height: { min: 400, ideal: 1080 },
+        aspectRatio: 1.777777778,
+        frameRate: { max: 20 },
+        echoCancellation : false,
+    };
+    let flagsStream = {
+        audio: false,
+        video: false
+    }
+    var stream;
+
+
+    $(document).ready(function(){
+        if(flagsStream.audio){
+            document.getElementById("audioIco").className = 'fas fa-microphone';
+        }else{
+            document.getElementById("audioIco").className = 'fas fa-microphone-slash';
+        }
+
+        if(flagsStream.video){
+            document.getElementById("videoIco").className = 'fas fa-video';
+        }else{
+            document.getElementById("videoIco").className = 'fas fa-video-slash';
+        }
+        document.getElementById('idSala').innerHTML = nombre;
+    });
+
+
+    document.getElementById("btnToggleVideo").addEventListener('click',()=>{
+        if(!flagsStream.video){
+            document.getElementById("videoIco").className = 'fas fa-video';
+        }else{
+            document.getElementById("videoIco").className = 'fas fa-video-slash';
+        }
+        flagsStream.video = !flagsStream.video;
+        stream.getTracks()[1].enabled = flagsStream.video;
+    })
+
+    document.getElementById("btnToggleAudio").addEventListener('click',()=>{
+        if(!flagsStream.audio){
+            document.getElementById("audioIco").className = 'fas fa-microphone';
+        }else{
+            document.getElementById("audioIco").className = 'fas fa-microphone-slash';
+        }
+        console.log(stream.getTracks())
+        
+        
+        flagsStream.audio = !flagsStream.audio;
+        stream.getTracks()[0].enabled = flagsStream.audio;
+    })
+
+    
+
+    async function init(e) {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia(constraints);
+            //Deshabilitar audio y video al entrar a la sala automaticamente
+            stream.getTracks()[0].enabled = flagsStream.audio;
+            stream.getTracks()[1].enabled = flagsStream.video;
+            handleSuccess(stream);
+            e.target.disabled = true;
+        } catch (e) {
+            handleError(e);
+        }
+    }
+
+    function handleSuccess(stream) {
+        const video = document.querySelector('video');
+        
+        const videoTracks = stream.getVideoTracks();
+        console.log('Got stream with constraints:', constraints);
+        console.log(`Using video device: ${videoTracks[0].label}`);
+        window.stream = stream; // make variable available to browser console
+        video.srcObject = stream;
+    }
+
+    function handleError(error) {
+        if (error.name === 'ConstraintNotSatisfiedError') {
+            const v = constraints.video;
+            errorMsg(`The resolution ${v.width.exact}x${v.height.exact} px is not supported by your device.`);
+        } else if (error.name === 'PermissionDeniedError') {
+            errorMsg('Permissions have not been granted to use your camera and ' +
+                'microphone, you need to allow the page access to your devices in ' +
+                'order for the demo to work.');
+        }
+        errorMsg(`getUserMedia error: ${error.name}`, error);
+    }
+
+    function errorMsg(msg, error) {
+        const errorElement = document.querySelector('#errorMsg');
+        errorElement.innerHTML += `<p>${msg}</p>`;
+        if (typeof error !== 'undefined') {
+            console.error(error);
+        }
+    }
+
+    window.onload = (e) => {
+        init(e)
+    }
+
+    
+</script>
