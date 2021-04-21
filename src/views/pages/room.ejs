@@ -148,9 +148,7 @@
         } else {
             document.getElementById("audioIco").className = 'fas fa-microphone-slash';
         }
-        console.log(stream.getTracks())
-
-
+    
         flagsStream.audio = !flagsStream.audio;
         localStream.getTracks()[0].enabled = flagsStream.audio;
     })
