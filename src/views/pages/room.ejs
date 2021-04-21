@@ -44,7 +44,7 @@
     let nombre = "<%= name %>";
     const ROOM_ID = "<%= uuid %>";
     var localStream;
-
+    var remoteStream;
     const socket = io();
     ////TODO refactoring
     //definir constraints para el streaming
@@ -80,20 +80,6 @@
             },
         ]
     }
-
-
-    const pc = new window.RTCPeerConnection(iceServers);
-
-    
-
-
-    socket.on("candidate", event => {
-        var iceCandidate = new window.RTCIceCandidate({
-            sdpMLineIndex: event.label,
-            candidate: event.candidate
-        });
-        pc.addIceCandidate(iceCandidate);
-    });
 
     const constraints = window.constraints = {
         audio: true,
@@ -153,7 +139,7 @@
             document.getElementById("videoIco").className = 'fas fa-video-slash';
         }
         flagsStream.video = !flagsStream.video;
-        stream.getTracks()[1].enabled = flagsStream.video;
+        localStream.getTracks()[1].enabled = flagsStream.video;
     })
 
     document.getElementById("btnToggleAudio").addEventListener('click', () => {
@@ -166,29 +152,38 @@
 
 
         flagsStream.audio = !flagsStream.audio;
-        stream.getTracks()[0].enabled = flagsStream.audio;
+        localStream.getTracks()[0].enabled = flagsStream.audio;
     })
 
-
+    
     const initConnection = (stream) => {
+
+        socket.emit('join-room', ROOM_ID);
+
         //Recibir oferta de otros clientes
         socket.on("answer", (answer) => {
-            localPeer.setRemoteDescription(new window.RTCSessionDescription(answer));
+            console.log(answer)
+            //
+            localPeer.setRemoteDescription(answer);
         });
 
-        socket.on("candidate", (candidate) =>{  
+        //Agrega candidatos ICE al objeto RTCPeerConnection local o remoto
+        socket.on("candidate", (candidate) => {
+            console.log(candidate)
             const conn = localPeer || remotePeer;
             conn.addIceCandidate(new window.RTCIceCandidate(candidate));
+            console.log(conn)
         })
 
-        socket.on('offer',(socketId,sdp) => {
+        socket.on('offer', (socketId, sdp) => {
+            console.log(socketId)
             //Inicializar peer connection
             remotePeer = new RTCPeerConnection(iceServers);
 
             //agregar stream a la peer connection
             stream.getTracks().forEach(track => {
                 //cada track implica un objeto del tipo MediaTrack que puede ser audio o video
-                remoteConnection.addTrack(track, stream);
+                remotePeer.addTrack(track, stream);
             });
 
             //Envio de los candidatos para establecer el canal de comunicacion (ICE)
@@ -198,7 +193,7 @@
                 candidate && socket.emit('candidate', socketId, candidate)
             }
 
-            //Recibir stream de peer remoto
+            //Recibir stream de peer remoto y agregar al contenedor correspondiente
             remotePeer.ontrack = ({
                 streams: [stream]
             }) => {
@@ -207,89 +202,109 @@
 
             // Establecer descripcion y crear una respuesta
             remotePeer.setRemoteDescription(new window.RTCSessionDescription(sdp))
-            .then(()=> {
-                remotePeer.createAnswer();
-            })
-            .then(answer => remotePeer.setLocalDescription(answer))
-            .then(()=>{
-                socket.emit('answer',socketId,remoteConnection.localDescription)
-            }).catch((e)=>{
-                console.log(e);
-            })
+                .then(() => {
+                    remotePeer.createAnswer();
+                })
+                .then((answer) => {
+                    remotePeer.setLocalDescription(answer).then(() => {
+                        //emision de respuesta al peer remoto
+                        socket.emit('answer', socketId, remotePeer.localDescription)
+                    }).catch((e) => {
+                        console.log(e);
+                    })
+                }).catch((e) => {
+                    console.log(e);
+                })
 
         })
-        socket.on('users', (users) => {
+
+
+        //Inicia la conexion RTCPeerConnection en cada cliente. Se usa el id de la sala como nombre del canal
+        socket.on(ROOM_ID, (users) => {
             // no transmitir si es q no hay usuarios conectados
             if (!users || !users.length)
                 return;
 
+            const userid = users[0];
+            
             //Inicializar peer connection
             localPeer = new window.RTCPeerConnection(iceServers);
 
             //agregar tracks de audio y video del stream al peer connection
             stream.getTracks().forEach(track => {
                 //cada track implica un objeto del tipo MediaTrack que puede ser audio o video
-                localConnection.addTrack(track, stream);
+                localPeer.addTrack(track, stream);
             });
 
             //Envio de los candidatos para establecer el canal de comunicacion (ICE)
             localPeer.onicecandidate = ({
                 candidate
             }) => {
-                candidate && socket.emit('candidate', users[0], candidate)
+
+                candidate && socket.emit('candidate', userid, candidate)
             }
 
             //Recibir stream de peer remoto
             localPeer.ontrack = ({
                 streams: [stream]
             }) => {
+                //asignacion de datos de stream a variable para su manejo
+                remoteStream = stream;
+                //asignacion al contenedor donde se maneja la transmision remota
                 remoteVideo.srcObject = stream
             }
 
             //Crear oferta , establecer SDP y enviar oferta a otros posibles peers
             localPeer.createOffer().then((offer) => {
-                localPeer.setLocalDescription(offer)
-            }
-            ).then(() => {
-                socket.emit('offer', socketId, localPeer.localDescription);
-            }).catch((e) => {
+                localPeer.setLocalDescription(offer).then(() => {
+
+                    socket.emit('offer', userid, localPeer.localDescription);
+                }).catch((e) => {
                     console.log(e)
                     //TODO manejo de errores
-                }
-            )
+                })
+
+            }).catch((e) => {
+                console.log(e)
+                //TODO manejo de errores
+            })
 
         })
     }
 
-
-
     async function init(e) {
         try {
+            console.log(await navigator.mediaDevices.enumerateDevices())
+            //Obtener transmision de audio y video
             let stream = await navigator.mediaDevices.getUserMedia(constraints);
             //Deshabilitar audio y video al entrar a la sala automaticamente
-            // stream.getTracks()[0].enabled = flagsStream.audio;
-            // stream.getTracks()[1].enabled = flagsStream.video;
-            localStream = stream
+            stream.getTracks()[0].enabled = flagsStream.audio;
+            stream.getTracks()[1].enabled = flagsStream.video;
+            
             handleSuccess(stream);
-            initConnection(stream);
+            //Iniciar el proceso de transmision para la comunicacion peer to peer
+            initConnection(localStream);
             e.target.disabled = true;
         } catch (e) {
             handleError(e);
         }
     }
-
+    // Manejo de promesa
     function handleSuccess(stream) {
-        const video = document.querySelector('video');
-        const videoTracks = stream.getVideoTracks();
-        window.stream = stream; // make variable available to browser console
-        video.srcObject = stream;
+        
+        // const videoTracks = stream.getVideoTracks();
+        localStream = stream; // asignacion a variable para disponibilidad en otras funciones
+        //asignacion al contenedor donde se maneja la transmision local
+        localVideo.srcObject = stream;
     }
 
+    //Manejo de errores 
     function handleError(error) {
+        //Error por ingreso de constraints definidos
         if (error.name === 'ConstraintNotSatisfiedError') {
             const v = constraints.video;
             errorMsg(`The resolution ${v.width.exact}x${v.height.exact} px is not supported by your device.`);
-        } else if (error.name === 'PermissionDeniedError') {
+        } else if (error.name === 'PermissionDeniedError') { // Error por permisos denegados
             errorMsg('Permissions have not been granted to use your camera and ' +
                 'microphone, you need to allow the page access to your devices in ' +
                 'order for the demo to work.');
@@ -297,6 +312,7 @@
         errorMsg(`getUserMedia error: ${error.name}`, error);
     }
 
+    //Utiliario Mensajes de error
     function errorMsg(msg, error) {
         const errorElement = document.querySelector('#errorMsg');
         errorElement.innerHTML += `<p>${msg}</p>`;

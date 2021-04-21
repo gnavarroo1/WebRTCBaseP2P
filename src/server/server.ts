@@ -27,7 +27,6 @@ export class App{
 
 
     private createApp(): void {
-        
         this.app = express();
         this.app.use(bodyParser.json());
         this.app.use(bodyParser.urlencoded({extended:true}))
@@ -89,6 +88,7 @@ export class App{
         
         socket.on("join-room", (roomId) =>{
             console.log("-----------------");
+            console.log('Room joined?')
             console.log(roomId)
             console.log("-----------------");
             //Si la sala existe se añade el id del socket a la sala
@@ -98,8 +98,14 @@ export class App{
                 this.rooms[roomId] = [socket.id];
             }
             socket.join(roomId);
-            const user = this.rooms[roomId].find(id => id !== socket.id)
-            socket.to(roomId).emit('join-room',socket.id)
+            console.log(this.rooms);
+            const user = this.rooms[roomId].filter(id => id !== socket.id)
+            console.log('------------')
+            console.log('rooms')
+            console.log(this.rooms)
+            console.log('------------')
+            socket.emit(roomId,user);
+            //socket.to(roomId).emit('join-room',socket.id)
             // if(user){
             //     socket.emit('other user', user);
             //     socket.to(roomId).broadcast.emit('user joined',socket.id);
@@ -113,23 +119,35 @@ export class App{
         socket.on("audio-mute", () =>{
 
         });
-        socket.on("disconnect", () =>{
-
+        socket.on("disconnect", (roomId) =>{
+            //this.rooms[roomId] = this.rooms[roomId].filter(id => id !== socket.id);
         });
     }
 
 
     private signalingHandshakeEvents(socket: Socket){
-        socket.on("signaling-offer", payload =>{
-            this.io.to(payload.target).emit('signaling-offer',payload)
+        socket.on("offer", (socketId,sdp) =>{
+            console.log('------------')
+            console.log('offer')
+            console.log([socketId,sdp])
+            console.log('------------')
+            this.io.to(socketId).emit('offer',socket.id,sdp);
         });
 
-        socket.on("signaling-answer", payload =>{
-            this.io.to(payload.target).emit('signaling-answer',payload)
+        socket.on("answer", (socketId,sdp) =>{
+            console.log('------------')
+            console.log('answer')
+            console.log([socketId,sdp])
+            console.log('------------')
+            this.io.to(socketId).emit('answer',sdp);
         });
-
-        socket.on('ice-candidate', incoming => {
-            this.io.to(incoming.target).emit('ice-candidate', incoming.candidate);
+        // 
+        socket.on('candidate', (socketId,candidate) => {
+            console.log('------------')
+            console.log('candidate')
+            console.log(candidate)
+            console.log('------------')
+            this.io.to(socketId).emit('candidate',candidate);
           });
     }
     
