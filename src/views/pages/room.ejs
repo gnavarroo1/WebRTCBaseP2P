@@ -7,94 +7,271 @@
 </head>
 
 <body>
-<h4> 
-    <div id="idSala">
-    
-    </div> 
-</h4>
+    <h4>
+        <div id="idSala">
+
+        </div>
+    </h4>
     <div class="wrapper fadeInDown" id="container">
         <div id="formContent">
-            <video autoplay id="localVideo" width="200" height="300"></video>
+            <video autoplay id="localVideo" width="300" height="200" muted="muted"></video>
             <div id="errorMsg">
+            </div>
+            <div id="controls">
+                <button id="btnToggleVideo" class="btn btn-circle btn-md btn-primary"><i id="videoIco"
+                        class="fas fa-video"></i></button>
+                <button id="btnToggleAudio" class="btn btn-circle btn-md btn-success"><i id="audioIco"
+                        class="fas fa-microphone"></i></button>
+            </div>
         </div>
-        <div id="controls">
-            <button id="btnToggleVideo" class="btn btn-circle btn-md btn-primary"><i id="videoIco" class="fas fa-video"></i></button>
-            <button id="btnToggleAudio" class="btn btn-circle btn-md btn-success"><i id="audioIco" class="fas fa-microphone"></i></button>
-        </div>
-    </div>
+        <div class="wrapper fadeInDown" id="container">
+            <div id="formContent">
+                <video autoplay id="remoteVideo" width="300" height="200"></video>
+                <div id="errorMsg">
+                </div>
+                <div id="controls">
+                    <!-- 
+                <button id="btnToggleVideo_2" class="btn btn-circle btn-md btn-primary"><i id="videoIco" class="fas fa-video"></i></button>
+            <button id="btnToggleAudio_2" class="btn btn-circle btn-md btn-success"><i id="audioIco" class="fas fa-microphone"></i></button>
+            -->
+                </div>
+            </div>
 </body>
 
 <script src="/libraries/jquery/js/jquery.min.js"></script>
-<script src="/js/socketIo/socket.js"></script>
-
+<script src="/libraries/socket.io-client/socket.io.min.js"></script>
 <script>
-    // Fetch an array of devices of a certain type
-    let nombre = "<%= uuid %>" ;
-    var socket = io.connect('http://localhost:5000'); 
+    let nombre = "<%= name %>";
+    const ROOM_ID = "<%= uuid %>";
+    var localStream;
+
+    const socket = io();
+    ////TODO refactoring
+    //definir constraints para el streaming
+
+    let localPeer;
+    let remotePeer;
+
+
+    const localVideo = document.getElementById('localVideo');
+    const remoteVideo = document.getElementById('remoteVideo');
+
+    window.RTCPeerConnection = window.mozRTCPeerConnection || window.webkitRTCPeerConnection;
+    window.RTCSessionDescription = window.mozRTCSessionDescription || window.RTCSessionDescription;
+    window.RTCIceCandidate = window.mozRTCIceCandidate || window.RTCIceCandidate;
+    // navigator.getUserMedia = navigator.mozGetUserMedia || navigator.webkitGetUserMedia;
+    window.URL = window.webkitURL || window.URL;
+
+    const iceServers = {
+        iceServers: [{
+                'urls': 'stun:stun.l.google.com:19302'
+            },
+            {
+                'urls': "stun:stun1.l.google.com:19302"
+            },
+            {
+                'urls': "stun:stun2.l.google.com:19302"
+            },
+            {
+                'urls': "stun:stun3.l.google.com:19302"
+            },
+            {
+                'urls': "stun:stun4.l.google.com:19302"
+            },
+        ]
+    }
+
+
+    const pc = new window.RTCPeerConnection(iceServers);
+
+    
+
+
+    socket.on("candidate", event => {
+        var iceCandidate = new window.RTCIceCandidate({
+            sdpMLineIndex: event.label,
+            candidate: event.candidate
+        });
+        pc.addIceCandidate(iceCandidate);
+    });
+
     const constraints = window.constraints = {
         audio: true,
         video: true,
-        width: { min: 640, ideal: 1920, max: 1920 },
-        height: { min: 400, ideal: 1080 },
-        aspectRatio: 1.777777778,
-        frameRate: { max: 20 },
-        echoCancellation : false,
+        width: {
+            min: 300,
+            ideal: 800,
+            max: 800
+        },
+        height: {
+            min: 200,
+            ideal: 600
+        },
+        aspectRatio: 1,
+        frameRate: {
+            max: 20
+        },
+        echoCancellation: false,
     };
+
+
+
+    // flag para toggle audio y video
     let flagsStream = {
         audio: false,
         video: false
     }
-    var stream;
+
+    // variable stream
 
 
-    $(document).ready(function(){
-        if(flagsStream.audio){
+
+    $(document).ready(function () {
+        // Evitar el eco de audio
+        localVideo.volume = 0;
+
+        // Set iconos de botones
+        if (flagsStream.audio) {
             document.getElementById("audioIco").className = 'fas fa-microphone';
-        }else{
+        } else {
             document.getElementById("audioIco").className = 'fas fa-microphone-slash';
         }
 
-        if(flagsStream.video){
+        if (flagsStream.video) {
             document.getElementById("videoIco").className = 'fas fa-video';
-        }else{
+        } else {
             document.getElementById("videoIco").className = 'fas fa-video-slash';
         }
-        document.getElementById('idSala').innerHTML = nombre;
+        document.getElementById('idSala').innerHTML = "<%= name %>";
     });
 
-
-    document.getElementById("btnToggleVideo").addEventListener('click',()=>{
-        if(!flagsStream.video){
+    // Eventos de toggle audio y video
+    document.getElementById("btnToggleVideo").addEventListener('click', () => {
+        if (!flagsStream.video) {
             document.getElementById("videoIco").className = 'fas fa-video';
-        }else{
+        } else {
             document.getElementById("videoIco").className = 'fas fa-video-slash';
         }
         flagsStream.video = !flagsStream.video;
         stream.getTracks()[1].enabled = flagsStream.video;
     })
 
-    document.getElementById("btnToggleAudio").addEventListener('click',()=>{
-        if(!flagsStream.audio){
+    document.getElementById("btnToggleAudio").addEventListener('click', () => {
+        if (!flagsStream.audio) {
             document.getElementById("audioIco").className = 'fas fa-microphone';
-        }else{
+        } else {
             document.getElementById("audioIco").className = 'fas fa-microphone-slash';
         }
         console.log(stream.getTracks())
-        
-        
+
+
         flagsStream.audio = !flagsStream.audio;
         stream.getTracks()[0].enabled = flagsStream.audio;
     })
 
-    
+
+    const initConnection = (stream) => {
+        //Recibir oferta de otros clientes
+        socket.on("answer", (answer) => {
+            localPeer.setRemoteDescription(new window.RTCSessionDescription(answer));
+        });
+
+        socket.on("candidate", (candidate) =>{  
+            const conn = localPeer || remotePeer;
+            conn.addIceCandidate(new window.RTCIceCandidate(candidate));
+        })
+
+        socket.on('offer',(socketId,sdp) => {
+            //Inicializar peer connection
+            remotePeer = new RTCPeerConnection(iceServers);
+
+            //agregar stream a la peer connection
+            stream.getTracks().forEach(track => {
+                //cada track implica un objeto del tipo MediaTrack que puede ser audio o video
+                remoteConnection.addTrack(track, stream);
+            });
+
+            //Envio de los candidatos para establecer el canal de comunicacion (ICE)
+            remotePeer.onicecandidate = ({
+                candidate
+            }) => {
+                candidate && socket.emit('candidate', socketId, candidate)
+            }
+
+            //Recibir stream de peer remoto
+            remotePeer.ontrack = ({
+                streams: [stream]
+            }) => {
+                remoteVideo.srcObject = stream
+            }
+
+            // Establecer descripcion y crear una respuesta
+            remotePeer.setRemoteDescription(new window.RTCSessionDescription(sdp))
+            .then(()=> {
+                remotePeer.createAnswer();
+            })
+            .then(answer => remotePeer.setLocalDescription(answer))
+            .then(()=>{
+                socket.emit('answer',socketId,remoteConnection.localDescription)
+            }).catch((e)=>{
+                console.log(e);
+            })
+
+        })
+        socket.on('users', (users) => {
+            // no transmitir si es q no hay usuarios conectados
+            if (!users || !users.length)
+                return;
+
+            //Inicializar peer connection
+            localPeer = new window.RTCPeerConnection(iceServers);
+
+            //agregar tracks de audio y video del stream al peer connection
+            stream.getTracks().forEach(track => {
+                //cada track implica un objeto del tipo MediaTrack que puede ser audio o video
+                localConnection.addTrack(track, stream);
+            });
+
+            //Envio de los candidatos para establecer el canal de comunicacion (ICE)
+            localPeer.onicecandidate = ({
+                candidate
+            }) => {
+                candidate && socket.emit('candidate', users[0], candidate)
+            }
+
+            //Recibir stream de peer remoto
+            localPeer.ontrack = ({
+                streams: [stream]
+            }) => {
+                remoteVideo.srcObject = stream
+            }
+
+            //Crear oferta , establecer SDP y enviar oferta a otros posibles peers
+            localPeer.createOffer().then((offer) => {
+                localPeer.setLocalDescription(offer)
+            }
+            ).then(() => {
+                socket.emit('offer', socketId, localPeer.localDescription);
+            }).catch((e) => {
+                    console.log(e)
+                    //TODO manejo de errores
+                }
+            )
+
+        })
+    }
+
+
 
     async function init(e) {
         try {
-            stream = await navigator.mediaDevices.getUserMedia(constraints);
+            let stream = await navigator.mediaDevices.getUserMedia(constraints);
             //Deshabilitar audio y video al entrar a la sala automaticamente
-            stream.getTracks()[0].enabled = flagsStream.audio;
-            stream.getTracks()[1].enabled = flagsStream.video;
+            // stream.getTracks()[0].enabled = flagsStream.audio;
+            // stream.getTracks()[1].enabled = flagsStream.video;
+            localStream = stream
             handleSuccess(stream);
+            initConnection(stream);
             e.target.disabled = true;
         } catch (e) {
             handleError(e);
@@ -103,10 +280,7 @@
 
     function handleSuccess(stream) {
         const video = document.querySelector('video');
-        
         const videoTracks = stream.getVideoTracks();
-        console.log('Got stream with constraints:', constraints);
-        console.log(`Using video device: ${videoTracks[0].label}`);
         window.stream = stream; // make variable available to browser console
         video.srcObject = stream;
     }
@@ -133,7 +307,6 @@
 
     window.onload = (e) => {
         init(e)
-    }
 
-    
+    }
 </script>
