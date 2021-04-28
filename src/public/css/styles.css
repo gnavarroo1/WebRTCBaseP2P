@@ -276,4 +276,26 @@ html {
   #icon {
     width:60%;
   }
-  
+
+.float{
+  position:fixed;
+  width:60px;
+  height:60px;
+  bottom:40px;
+  right:40px;
+  border-radius:50px;
+  text-align:center;
+  box-shadow: 2px 2px 3px #000000;
+}
+
+.bg_red{
+  color:#fff;
+  background-color:#ff253a;
+}
+.bg_red:hover{
+  color:#ffff;
+  background-color:darkred;
+}
+.my-float{
+  margin-top:22px;
+}

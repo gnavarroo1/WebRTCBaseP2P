@@ -1,13 +1,14 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
 import { createServer, Server } from 'http';
 import * as socketIo from 'socket.io';
-// import ioclient from 'socket.io-client';
 import bodyParser from 'body-parser';
 import cors from 'cors';
 import helmet = require("helmet");
 import * as path from 'path';
 import cookieParser from 'cookie-parser';
+import * as cookie from 'cookie';
 import { Socket } from 'socket.io';
+import {disconnect} from "cluster";
 export class App{
     public static readonly PORT = process.env.PORT || 5000;
     private app: express.Application;
@@ -44,13 +45,18 @@ export class App{
 
 
     private setCSSLibrariesFiles():void{
-        this.app.use('/libraries/bootstrap/css',express.static(path.join(__dirname, '../../node_modules/bootstrap/dist/css')));    
+        this.app.use('/libraries/bootstrap/css',express.static(path.join(__dirname, '../../node_modules/bootstrap/dist/css')));
+        this.app.use('/libraries/toastr/css',express.static(path.join(__dirname, '../../node_modules/toastr/build/')));
+        this.app.use('/libraries/sweetalert2/css',express.static(path.join(__dirname, '../../node_modules/sweetalert2/dist/')));
     }
 
     private setJSLibrariesFiles():void{
         this.app.use('/libraries/bootstrap/js',express.static(path.join(__dirname, '../../node_modules/bootstrap/dist/js')));
+        this.app.use('/libraries/sweetalert2/js',express.static(path.join(__dirname, '../../node_modules/sweetalert2/dist/')));
+        this.app.use('/libraries/toastr/js',express.static(path.join(__dirname, '../../node_modules/toastr/build/')));
         this.app.use('/libraries/jquery/js',express.static(path.join(__dirname, '../../node_modules/jquery/dist')));
         this.app.use('/libraries/socket.io-client',express.static(path.join(__dirname, '../../node_modules/socket.io-client/dist')));
+
     }
 
     private config(): void {
@@ -81,30 +87,38 @@ export class App{
         this.io.on("connection",socket =>{
             this.socketNotificationEvents(socket);
             this.signalingHandshakeEvents(socket);
+
         })  
     }
 
     private socketNotificationEvents(socket:any){
         
         socket.on("join-room", (roomId) =>{
-            console.log("-----------------");
-            console.log('Room joined?')
-            console.log(roomId)
-            console.log("-----------------");
+
+            const parsedCookie = cookie.parse(socket.handshake.headers.cookie)
+            // console.log(parsedCookie);
+            let userId = parsedCookie.userId;
             //Si la sala existe se añade el id del socket a la sala
             if(this.rooms[roomId]){
-                this.rooms[roomId].push(socket.id);
+                // console.log(socket.id);
+                this.rooms[roomId].push({
+                    userId : userId,
+                    socketId: socket.id
+                });
             }else{ // sino se agrega el id de la sala a la lista como key y el valor un array con el id del socket
-                this.rooms[roomId] = [socket.id];
+                this.rooms[roomId] = [
+                    {
+                        userId : userId,
+                        socketId: socket.id
+                    }
+                ];
             }
             socket.join(roomId);
-            console.log(this.rooms);
-            const user = this.rooms[roomId].filter(id => id !== socket.id)
-            console.log('------------')
-            console.log('rooms')
-            console.log(this.rooms)
-            console.log('------------')
+            const user = this.rooms[roomId].filter( room => room.userId !== userId)
             socket.emit(roomId,user);
+
+            //TODO update user list
+
             //socket.to(roomId).emit('join-room',socket.id)
             // if(user){
             //     socket.emit('other user', user);
@@ -119,34 +133,34 @@ export class App{
         socket.on("audio-mute", () =>{
 
         });
-        socket.on("disconnect", (roomId) =>{
-            //this.rooms[roomId] = this.rooms[roomId].filter(id => id !== socket.id);
+        socket.on("peer_disconnect", (roomId) =>{
+            // console.log("ROOM ID => " + roomId)
+            // console.log(this.rooms)
+            // console.log("DISCONNECTED => " +socket.id)
+            if(this.rooms[roomId]) {
+                this.rooms[roomId] = this.rooms[roomId].filter((user) => {
+                    return user.socketId !== socket.id;
+                })
+                this.rooms[roomId].forEach((user) => {
+                    this.io.to(user.socketId).emit("disconnect_peer", socket.id)
+                })
+                // socket.disconnect();
+            }
         });
+
     }
 
 
     private signalingHandshakeEvents(socket: Socket){
         socket.on("offer", (socketId,sdp) =>{
-            console.log('------------')
-            console.log('offer')
-            console.log([socketId,sdp])
-            console.log('------------')
             this.io.to(socketId).emit('offer',socket.id,sdp);
         });
 
         socket.on("answer", (socketId,sdp) =>{
-            console.log('------------')
-            console.log('answer')
-            console.log([socketId,sdp])
-            console.log('------------')
             this.io.to(socketId).emit('answer',sdp);
         });
         // 
         socket.on('candidate', (socketId,candidate) => {
-            console.log('------------')
-            console.log('candidate')
-            console.log(candidate)
-            console.log('------------')
             this.io.to(socketId).emit('candidate',candidate);
           });
     }

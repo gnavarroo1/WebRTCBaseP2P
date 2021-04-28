@@ -2,15 +2,24 @@
 
 <head>
     <link rel="stylesheet" type="text/css" href="/libraries/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="/libraries/toastr/css/toastr.min.css">
     <link rel="stylesheet" type="text/css" href="/css/styles.css">
+    <link rel="stylesheet" type="text/css" href="/libraries/sweetalert2/css/sweetalert2.min.css">
     <link rel="stylesheet" type="text/css" href="/css/fontawesome/css/all.min.css">
 </head>
 
-<body>
+<body onbeforeunload="handleDisconnection()">
     <h4>
         <div id="idSala">
-
+            <h3>
+                <%= name %>
+            </h3>
         </div>
+        <% if (isRoomCreator) { %>
+        <div>
+            <button id="btnCompartir" class="btn btn-md" onclick="createRoomCode()"><i class="fas fa-share"></i>Compartir</button>
+        </div>
+        <% } %>
     </h4>
     <div class="wrapper fadeInDown" id="container">
         <div id="formContent">
@@ -30,22 +39,32 @@
                 <div id="errorMsg">
                 </div>
                 <div id="controls">
-                    <!-- 
+                    <!--
                 <button id="btnToggleVideo_2" class="btn btn-circle btn-md btn-primary"><i id="videoIco" class="fas fa-video"></i></button>
             <button id="btnToggleAudio_2" class="btn btn-circle btn-md btn-success"><i id="audioIco" class="fas fa-microphone"></i></button>
             -->
                 </div>
             </div>
+        </div>
+    </div>
+
+    <a  class="float bg_red" onclick="exitRoom()">
+        <i class="fas fa-sign-out-alt my-float"></i>
+    </a>
 </body>
 
 <script src="/libraries/jquery/js/jquery.min.js"></script>
+<script src="/libraries/toastr/js/toastr.min.js"></script>
+<script src="/libraries/sweetalert2/js/sweetalert2.min.js"></script>
+
 <script src="/libraries/socket.io-client/socket.io.min.js"></script>
 <script>
     let nombre = "<%= name %>";
     const ROOM_ID = "<%= uuid %>";
+    let onRedirection = false;
     var localStream;
     var remoteStream;
-    const socket = io();
+    const socket = io('/');
     ////TODO refactoring
     //definir constraints para el streaming
 
@@ -71,13 +90,7 @@
             },
             {
                 'urls': "stun:stun2.l.google.com:19302"
-            },
-            {
-                'urls': "stun:stun3.l.google.com:19302"
-            },
-            {
-                'urls': "stun:stun4.l.google.com:19302"
-            },
+            }
         ]
     }
 
@@ -100,18 +113,20 @@
         echoCancellation: false,
     };
 
-
-
     // flag para toggle audio y video
     let flagsStream = {
         audio: false,
         video: false
     }
 
+
+function handleDisconnection(){
+    if(!onRedirection) {
+        socket.emit('peer_disconnect', ROOM_ID);
+        socket.disconnect();
+    }
+}
     // variable stream
-
-
-
     $(document).ready(function () {
         // Evitar el eco de audio
         localVideo.volume = 0;
@@ -128,7 +143,7 @@
         } else {
             document.getElementById("videoIco").className = 'fas fa-video-slash';
         }
-        document.getElementById('idSala').innerHTML = "<%= name %>";
+        // document.getElementById('idSala').innerHTML = "";
     });
 
     // Eventos de toggle audio y video
@@ -148,33 +163,27 @@
         } else {
             document.getElementById("audioIco").className = 'fas fa-microphone-slash';
         }
-    
+
         flagsStream.audio = !flagsStream.audio;
         localStream.getTracks()[0].enabled = flagsStream.audio;
     })
-
-    
     const initConnection = (stream) => {
 
-        socket.emit('join-room', ROOM_ID);
-
+        socket.emit('join-room', ROOM_ID );
         //Recibir oferta de otros clientes
         socket.on("answer", (answer) => {
-            console.log(answer)
-            //
+            // console.log(answer)
             localPeer.setRemoteDescription(answer);
         });
-
         //Agrega candidatos ICE al objeto RTCPeerConnection local o remoto
         socket.on("candidate", (candidate) => {
-            console.log(candidate)
+            // console.log(candidate)
             const conn = localPeer || remotePeer;
             conn.addIceCandidate(new window.RTCIceCandidate(candidate));
-            console.log(conn)
+            // console.log(conn)
         })
-
         socket.on('offer', (socketId, sdp) => {
-            console.log(socketId)
+            // console.log(socketId)
             //Inicializar peer connection
             remotePeer = new RTCPeerConnection(iceServers);
 
@@ -195,6 +204,7 @@
             remotePeer.ontrack = ({
                 streams: [stream]
             }) => {
+                remoteStream = stream;
                 remoteVideo.srcObject = stream
             }
 
@@ -215,16 +225,15 @@
                 })
 
         })
-
-
         //Inicia la conexion RTCPeerConnection en cada cliente. Se usa el id de la sala como nombre del canal
         socket.on(ROOM_ID, (users) => {
             // no transmitir si es q no hay usuarios conectados
+            console.log(users)
             if (!users || !users.length)
                 return;
 
-            const userid = users[0];
-            
+            const userid = users[0].socketId;
+
             //Inicializar peer connection
             localPeer = new window.RTCPeerConnection(iceServers);
 
@@ -268,17 +277,25 @@
             })
 
         })
+
+        socket.on('disconnect_peer', (id) =>{
+            remoteVideo.srcObject = null;
+            remoteStream = null;
+            remotePeer = null;
+        })
+
     }
 
     async function init(e) {
         try {
             console.log(await navigator.mediaDevices.enumerateDevices())
+            console.log(navigator.mediaDevices.getSupportedConstraints());
             //Obtener transmision de audio y video
             let stream = await navigator.mediaDevices.getUserMedia(constraints);
             //Deshabilitar audio y video al entrar a la sala automaticamente
             stream.getTracks()[0].enabled = flagsStream.audio;
             stream.getTracks()[1].enabled = flagsStream.video;
-            
+
             handleSuccess(stream);
             //Iniciar el proceso de transmision para la comunicacion peer to peer
             initConnection(localStream);
@@ -289,10 +306,7 @@
     }
     // Manejo de promesa
     function handleSuccess(stream) {
-        
-        // const videoTracks = stream.getVideoTracks();
         localStream = stream; // asignacion a variable para disponibilidad en otras funciones
-        //asignacion al contenedor donde se maneja la transmision local
         localVideo.srcObject = stream;
     }
 
@@ -300,12 +314,9 @@
     function handleError(error) {
         //Error por ingreso de constraints definidos
         if (error.name === 'ConstraintNotSatisfiedError') {
-            const v = constraints.video;
-            errorMsg(`The resolution ${v.width.exact}x${v.height.exact} px is not supported by your device.`);
+            //TODO
         } else if (error.name === 'PermissionDeniedError') { // Error por permisos denegados
-            errorMsg('Permissions have not been granted to use your camera and ' +
-                'microphone, you need to allow the page access to your devices in ' +
-                'order for the demo to work.');
+            //TODO
         }
         errorMsg(`getUserMedia error: ${error.name}`, error);
     }
@@ -319,8 +330,98 @@
         }
     }
 
+
+    <% if (isRoomCreator) { %>
+    function createRoomCode(){
+        try {
+            $.ajax({
+                url: '/api/createRoomCode',
+                method: 'POST',
+                data: {
+                    roomId: ROOM_ID
+                },
+                success: function (res) {
+                    if(res.success){
+                        const url = window.location.origin + "/room/"+res.data.roomCode
+                        navigator.clipboard.writeText(url)
+
+                    }else{
+                        toastr.error(res.data.message);
+                    }
+
+                },
+                error: function (data, textStatus, jqXHR) {
+
+                    console.log(data, textStatus, jqXHR);
+
+                }
+            })
+
+
+
+        }catch(err){
+            console.error(err);
+            toastr.error("error")
+        }
+
+
+    }
+    <% } %>
+
+
+
     window.onload = (e) => {
         init(e)
+    }
 
+    function exitRoom(){
+
+        Swal.fire({
+            title: `SALIR DE SESIÓN`,
+            text: `¿ESTA USTED SEGURO DE QUE DESEA SALIR DE LA SESIÓN?`,
+            type: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            cancelButtonText: 'NO',
+            confirmButtonText: 'SI'
+        }).then((result) => {
+            if (result.value) {
+                try {
+                    $.ajax({
+                        url: '/api/updateRoomUserList',
+                        method: 'POST',
+                        data: {
+                            roomId: ROOM_ID
+                        },
+                        success: function (res) {
+                            if(res.success){
+                                onRedirection = true;
+                                socket.emit('peer_disconnect', ROOM_ID);
+                                // socket.disconnect();
+                                window.location.replace('/');
+                            }else{
+                                toastr.error(res.data.errorMsg);
+                            }
+
+                        },
+                        error: function (data, textStatus, jqXHR) {
+
+                            console.log(data, textStatus, jqXHR);
+
+                        }
+                    })
+
+
+
+                }catch(err){
+                    console.error(err);
+                    toastr.error("error")
+                }
+
+            }
+        }).catch((e) => {
+            console.log(e)
+        })
     }
 </script>
