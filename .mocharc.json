@@ -1,4 +1,5 @@
 {
+  "extension": ["ts", "tsx"],
   "require": "./register.js",
   "reporter": "dot"
 }

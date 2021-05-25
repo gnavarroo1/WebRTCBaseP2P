@@ -18,7 +18,7 @@ export class Routes {
         this.app.get('/', (request, response) => {
             const id = v4();
             if(!request.cookies.userId)
-                response.cookie("userId",id,{ maxAge: 3600000 })
+                response.cookie("userId",id,{ maxAge: 3600000, httpOnly: true })
 
             response.render('pages/index')
         });

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title> Signup Form</title>
+    <link rel="stylesheet"
+          href=
+          "https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
+          integrity=
+          "sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u"
+          crossorigin="anonymous">
+    <link rel="stylesheet" type="text/css" href="/libraries/toastr/css/toastr.min.css">
+<!--    <link rel="stylesheet" type="text/css" href="/css/styles.css">-->
+<style>
+    .invalid-feedback{
+        width: 100%;
+        margin-top: .25rem;
+        font-size: .875em;
+        color: #dc3545;
+    }
+</style>
+</head>
+<body>
+
+<br>
+<br>
+<br>
+<div class="container" >
+    <div class="row">
+        <div class="col-md-3">
+
+        </div>
+
+        <div class="col-md-6 main">
+            <h1> Signup form </h1>
+            <form id="frmSignUP" class="row" method="post">
+                <div class="col-12">
+                    <label for="firstname" class="form-label">First name</label>
+                    <input class="form-control" type="text" name="firstname" id="firstname"
+                           placeholder="First Name"  required />
+                    <div class="invalid-feedback" id="error-firstname">
+                    </div>
+                </div>
+                <br>
+                <div class="col-12">
+                    <label for="lastname" class="form-label">Last name</label>
+                    <input class="form-control" type="text" name="lastname" id="lastname"
+                           placeholder="Last Name"  required />
+                    <div class="invalid-feedback" id="error-lastname">
+                    </div>
+                </div>
+                <br>
+                <div class="col-12">
+                    <label for="username" class="form-label">Username</label>
+                    <input class="form-control" type="text" name="username" id="username"
+                           placeholder="Username"  required />
+                    <div class="invalid-feedback" id="error-username">
+                    </div>
+                </div>
+                <br>
+                <div class="col-12">
+                    <label for="email" class="form-label">Email</label>
+                    <input class="form-control" type="email" name="email" id="email"
+                           placeholder="E-Mail " required />
+                    <div class="invalid-feedback" id="error-email">
+                    </div>
+                </div>
+                <br>
+                <div class="col-12">
+                    <label for="password" class="form-label">Password</label>
+                    <input class="form-control" type="password" name="password"
+                           id="password" placeholder="Password " required/>
+                    <div class="invalid-feedback" id="error-password">
+                    </div>
+                </div>
+                <br>
+                <div class="col-12">
+                    <button class="btn btn-primary" type="submit">Submit form</button>
+                    <button class="btn btn-danger" onclick="window.location.assign('/')" type="button">Cancel</button>
+                </div>
+
+
+            </form>
+
+        </div>
+
+
+        <div class="col-md-3">
+        </div>
+
+    </div>
+</div>
+</body>
+<script src="/libraries/jquery/js/jquery.min.js"></script>
+<script src="/libraries/toastr/js/toastr.min.js"></script>
+<script>
+    $( document ).ready(function() {
+        $('#frmSignUP').submit((event) => {
+            event.preventDefault();
+            $.ajax({
+                type: "POST",
+                url: '/api/sign-up',
+                dataType: "json",
+                data: {
+                    firstname: $("#firstname").val(),
+                    lastname: $("#lastname").val(),
+                    username: $("#username").val(),
+                    email: $("#email").val(),
+                    password: $("#password").val()
+                },success: function (res) {
+                    toastr.success('Creación de usuario se realizó con exito.')
+                    setTimeout(()=>{
+                        window.location.assign('/')
+                    },9000)
+                },
+                error: function (data, textStatus, jqXHR) {
+                    toastr.error('Error en la Creación de usuario.')
+                    console.log(data, textStatus, jqXHR);
+                    console.log(data.responseJSON);
+                    handleErrors(data.responseJSON);
+                }
+            })
+
+        })
+    });
+    
+    function handleErrors(data){
+        if(data){
+            document.getElementById('error-firstname').innerText = "";
+            document.getElementById('error-lastname').innerText = "";
+            document.getElementById('error-username').innerText = "";
+            document.getElementById('error-password').innerText = "";
+            document.getElementById('error-email').innerText = "";
+
+        }
+        if(data.hasOwnProperty('password')){
+            document.getElementById('error-password').innerText = data.password.message;
+        }else{
+            document.getElementById('error-password').innerText = "";
+        }
+        if(data.hasOwnProperty('email')){
+            document.getElementById('error-email').innerText = data.email.message;
+        }else{
+            document.getElementById('error-email').innerText = "";
+        }
+        if(data.hasOwnProperty('username')){
+            document.getElementById('error-username').innerText = data.username.message;
+        }else{
+            document.getElementById('error-username').innerText = "";
+        }
+        if(data.hasOwnProperty('firstname')){
+            document.getElementById('error-firstname').innerText = data.firstname.message;
+        }else{
+            document.getElementById('error-firstname').innerText = "";
+        }
+        if(data.hasOwnProperty('lastname')){
+            document.getElementById('error-lastname').innerText = data.lastname.message;
+        }else{
+            document.getElementById('error-lastname').innerText = "";
+        }
+    }
+    
+</script>
+</html>

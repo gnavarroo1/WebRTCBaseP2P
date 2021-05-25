@@ -1,0 +1,521 @@
+<html>
+
+<head>
+    <link rel="stylesheet" type="text/css" href="/libraries/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="/libraries/toastr/css/toastr.min.css">
+    <link rel="stylesheet" type="text/css" href="/css/styles.css">
+    <link rel="stylesheet" type="text/css" href="/libraries/sweetalert2/css/sweetalert2.min.css">
+    <link rel="stylesheet" type="text/css" href="/css/fontawesome/css/all.min.css">
+    <style>
+        #loader {
+            border: 12px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 12px solid #444444;
+            width: 70px;
+            height: 70px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+        .center {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            margin: auto;
+        }
+        #video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, 300px);
+            grid-auto-rows: 300px;
+        }
+
+        video {
+            width: 300px;
+            height: 200px;
+            /*object-fit: cover;*/
+        }
+    </style>
+</head>
+
+<body onbeforeunload="handleDisconnection(false)">
+    <div id="loader" class="center"></div>
+
+    <div id="container">
+        <h4>
+            <div id="idSala">
+                <h3>
+                    <%= name %>
+                </h3>
+            </div>
+            <% if (isRoomCreator) { %>
+                <div>
+                    <button id="btnCompartir" class="btn btn-md" onclick="createRoomCode()"><i class="fas fa-share"></i>Compartir</button>
+                </div>
+                <div>
+                    <button id="btnFinalizar" class="btn btn-md" onclick="endSession()"><i class="fas fa-hourglass-end"></i>Finalizar sesión</button>
+                </div>
+                <input type="hidden" id="input_clipboard" value="">
+            <% } %>
+        </h4>
+        <div>
+            <div id="video-grid">
+                <div id="container-myvideo" class="formContent">
+                    <video autoplay id="myVideo" muted></video>
+                    <div id="controls" style="padding-top: 10px">
+                        <button id="btnToggleVideo" class="btn btn-circle btn-md btn-primary"><i id="videoIco"
+                                                                                                 class="fas fa-video"></i></button>
+                        <button id="btnToggleAudio" class="btn btn-circle btn-md btn-success"><i id="audioIco"
+                                                                                                 class="fas fa-microphone"></i></button>
+                    </div>
+                    <div id="errorMsg">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <a  class="float bg_red" onclick="exitRoom()">
+            <i class="fas fa-sign-out-alt my-float"></i>
+        </a>
+    </div>
+
+</body>
+<script src="/libraries/jquery/js/jquery.min.js"></script>
+<script src="/libraries/sweetalert2/js/sweetalert2.min.js"></script>
+<script src="/libraries/toastr/js/toastr.min.js"></script>
+<script src="/libraries/socket.io-client/socket.io.min.js"></script>
+<script>
+    let nombre = "<%= name %>";
+    const ROOM_ID = "<%= uuid %>";
+    var signaling_url = '/'
+</script>
+<% if (isRoomCreator) { %>
+    <script id="index" data-attr="<%= isRoomCreator %>" src="/js/index.js?ver=2.0"></script>
+<% }else{ %>
+    <script src="/js/index.js?ver=2.0"></script>
+<% } %>
+<script>
+
+
+    // var localStream;
+    // var remoteStream;
+    // const socket = io(signaling_url);
+    ////TODO refactoring
+    //definir constraints para el streaming
+
+    // let localPeer;
+    // let remotePeer;
+
+
+    // const localVideo = document.getElementById('localVideo');
+    // const remoteVideo = document.getElementById('remoteVideo');
+    //
+    // window.RTCPeerConnection = window.mozRTCPeerConnection || window.webkitRTCPeerConnection;
+    // window.RTCSessionDescription = window.mozRTCSessionDescription || window.RTCSessionDescription;
+    // window.RTCIceCandidate = window.mozRTCIceCandidate || window.RTCIceCandidate;
+    // // navigator.getUserMedia = navigator.mozGetUserMedia || navigator.webkitGetUserMedia;
+    // window.URL = window.webkitURL || window.URL;
+
+    // const iceServers = {
+    //     iceServers: [{
+    //             'urls': 'stun:stun.l.google.com:19302'
+    //         },
+    //         {
+    //             'urls': "stun:stun1.l.google.com:19302"
+    //         },
+    //         {
+    //             'urls': "stun:stun2.l.google.com:19302"
+    //         }
+    //     ]
+    // }
+
+    // const constraints = window.constraints = {
+    //     audio: true,
+    //     video: true,
+    //     width: {
+    //         min: 300,
+    //         ideal: 800,
+    //         max: 800
+    //     },
+    //     height: {
+    //         min: 200,
+    //         ideal: 600
+    //     },
+    //     aspectRatio: 1,
+    //     frameRate: {
+    //         max: 20
+    //     },
+    //     echoCancellation: false,
+    // };
+
+    // flag para toggle audio y video
+    let flagsStream = {
+        audio: false,
+        video: false
+    }
+
+
+function handleDisconnection(onRedirection){
+    if(!onRedirection) {
+        socket.emit('peer_disconnect', ROOM_ID);
+        // socket.disconnect();
+    }
+}
+//     const initConnection = (stream) => {
+//         socket.emit('join-room', ROOM_ID );
+//         //Recibir oferta de otros clientes
+//         socket.on("answer", (answer) => {
+//             localPeer.setRemoteDescription(answer);
+//         });
+//         //Agrega candidatos ICE al objeto RTCPeerConnection local o remoto
+//         socket.on("candidate", (candidate) => {
+//             const conn = localPeer || remotePeer;
+//             conn.addIceCandidate(new window.RTCIceCandidate(candidate));
+//         })
+//         socket.on('offer', (socketId, sdp) => {
+//             //Inicializar peer connection
+//             remotePeer = new RTCPeerConnection(iceServers);
+//             //agregar stream a la peer connection
+//             stream.getTracks().forEach(track => {
+//                 //cada track implica un objeto del tipo MediaTrack que puede ser audio o video
+//                 remotePeer.addTrack(track, stream);
+//             });
+//             //Envio de los candidatos para establecer el canal de comunicacion (ICE)
+//             remotePeer.onicecandidate = ({
+//                                              candidate
+//                                          }) => {
+//                 candidate && socket.emit('candidate', socketId, candidate)
+//             }
+//             //Recibir stream de peer remoto y agregar al contenedor correspondiente
+//             remotePeer.ontrack = ({  streams: [stream] }) => {
+//                 remoteStream = stream;
+//                 remoteVideo.srcObject = stream
+//             }
+//             // Establecer descripcion y crear una respuesta
+//             remotePeer.setRemoteDescription(new RTCSessionDescription(sdp))
+//                 .then(() => {
+//                     remotePeer.createAnswer();
+//                 }).then((answer) => {
+//                 remotePeer.setLocalDescription(answer).then(() => {
+//                     //emision de respuesta al peer remoto
+//                     socket.emit('answer', socketId, remotePeer.localDescription)
+//                 }).catch((e) => {
+//                     console.log(e);
+//                 })
+//             }).catch((e) => {
+//                 console.log(e);
+//             })
+//         })
+//         //Inicia la conexion RTCPeerConnection en cada cliente. Se usa el id de la sala como nombre del canal
+//         socket.on(ROOM_ID, (users) => {
+//             // no transmitir si es q no hay usuarios conectados
+//             console.log(users);
+//             // return;
+//             if (!users)
+//                 return;
+//             const userid = users.socket_id;
+//
+//             //Inicializar peer connection
+//             localPeer = new window.RTCPeerConnection(iceServers);
+//             //agregar tracks de audio y video del stream al peer connection
+//             stream.getTracks().forEach(track => {
+//                 //cada track implica un objeto del tipo MediaTrack que puede ser audio o video
+//                 localPeer.addTrack(track, stream);
+//             });
+//             //Envio de los candidatos para establecer el canal de comunicacion (ICE)
+//             localPeer.onicecandidate = ({
+//                                             candidate
+//                                         }) => {
+//                 candidate && socket.emit('candidate', userid, candidate)
+//             }
+//             //Recibir stream de peer remoto
+//             localPeer.ontrack = ({                 streams: [stream]             }) => {
+//                 //asignacion de datos de stream a variable para su manejo
+//                 remoteStream = stream;
+//                 //asignacion al contenedor donde se maneja la transmision remota
+//                 remoteVideo.srcObject = stream
+//             }
+//             //Crear oferta , establecer SDP y enviar oferta a otros posibles peers
+//             localPeer.createOffer().then((offer) => {
+//                 localPeer.setLocalDescription(offer).then(() => {
+//                     socket.emit('offer', userid, localPeer.localDescription);
+//                 }).catch((e) => {
+//                     //TODO manejo de errores
+//                     console.log(e)
+//                 })
+//
+//             }).catch((e) => {
+//                 //TODO manejo de errores
+//                 console.log(e)
+//             })
+//         })
+//         // Manejo de desconexion de participantes
+//         socket.on('disconnect_peer', (id) =>{
+//             remoteVideo.srcObject = null;
+//             remoteStream = null;
+//             remotePeer = null;
+//         })
+//     }
+
+    // variable stream
+    $(document).ready(function () {
+        // Evitar el eco de audio
+        document.getElementById('myVideo').volume = 0;
+        // Set iconos de botones
+        if (flagsStream.audio) {
+            document.getElementById("audioIco").className = 'fas fa-microphone';
+        } else {
+            document.getElementById("audioIco").className = 'fas fa-microphone-slash';
+        }
+
+        if (flagsStream.video) {
+            document.getElementById("videoIco").className = 'fas fa-video';
+        } else {
+            document.getElementById("videoIco").className = 'fas fa-video-slash';
+        }
+        // document.getElementById('idSala').innerHTML = "";
+    });
+
+    document.onreadystatechange = function() {
+        if (document.readyState !== "complete") {
+            document.querySelector(
+                "#container").style.visibility = "hidden";
+            document.querySelector(
+                "#loader").style.visibility = "visible";
+        }
+    };
+
+    // Eventos de toggle audio y video
+    document.getElementById("btnToggleVideo").addEventListener('click', () => {
+        if (!flagsStream.video) {
+            document.getElementById("videoIco").className = 'fas fa-video';
+        } else {
+            document.getElementById("videoIco").className = 'fas fa-video-slash';
+        }
+        flagsStream.video = !flagsStream.video;
+        for(let track of localStream.getTracks()){
+            if(track.kind === "video")
+                track.enabled = flagsStream.video;
+        }
+        // localStream.getTracks()[1].enabled = flagsStream.video;
+    })
+    document.getElementById("btnToggleAudio").addEventListener('click', () => {
+        if (!flagsStream.audio) {
+            document.getElementById("audioIco").className = 'fas fa-microphone';
+        } else {
+            document.getElementById("audioIco").className = 'fas fa-microphone-slash';
+        }
+        flagsStream.audio = !flagsStream.audio;
+        for(let track of localStream.getTracks()){
+            if(track.kind === "audio")
+                track.enabled = flagsStream.audio;
+        }
+    })
+
+    window.onload = (e) => {
+        initializeRoom()
+    }
+    // async function init(e) {
+    //     try {
+    //         //Obtener transmision de audio y video
+    //         let stream = await navigator.mediaDevices.getUserMedia(constraints);
+    //         //TODO Modal de bloqueo
+    //
+    //         //Deshabilitar audio y video al entrar a la sala automaticamente
+    //         stream.getTracks()[0].enabled = flagsStream.audio;
+    //         stream.getTracks()[1].enabled = flagsStream.video;
+    //         handleSuccess(stream);
+    //         //Iniciar el proceso de transmision para la comunicacion peer to peer
+    //         initConnection(localStream);
+    //         e.target.disabled = true;
+    //     } catch (e) {
+    //         handleError(e);
+    //     }
+    // }
+
+    // Manejo de promesa
+    function handleSuccess(stream) {
+        localStream = stream; // asignacion a variable para disponibilidad en otras funciones
+        localVideo.srcObject = stream;
+    }
+
+    //Manejo de errores 
+    function handleError(error) {
+        //Error por ingreso de constraints definidos
+        if (error.name === 'ConstraintNotSatisfiedError') {
+            //TODO
+        } else if (error.name === 'PermissionDeniedError') { // Error por permisos denegados
+            //TODO
+        }
+        errorMsg(`getUserMedia error: ${error.name}`, error);
+    }
+    //Utiliario Mensajes de error
+    function errorMsg(msg, error) {
+        const errorElement = document.querySelector('#errorMsg');
+        errorElement.innerHTML += `<p>${msg}</p>`;
+        if (typeof error !== 'undefined') {
+            console.error(error);
+        }
+    }
+
+
+    <% if (isRoomCreator) { %>
+    function createRoomCode(){
+        try {
+            const url = window.location.origin+'/api/rooms-code';
+            $.ajax({
+                    url: url,
+                    method: 'POST',
+                    data: {
+                        roomId: ROOM_ID
+                    },
+                    success: function (res) {
+                        console.log(res)
+                        if(res){
+                            const url = window.location.origin + "/rooms/"+res.data.room_code
+                            $('#input_clipboard').val(url);
+                            navigator.clipboard.writeText(url)
+                        }else{
+                            toastr.error(res.data.message);
+                        }
+                    },
+                    error: function (data, textStatus, jqXHR) {
+
+                        console.log(data, textStatus, jqXHR);
+
+                    }
+                })
+        }catch(err){
+            console.error(err);
+            toastr.error("error")
+        }
+    }
+
+
+
+
+    <% } %>
+
+    function exitRoom(){
+        Swal.fire({
+            title: `SALIR DE SESIÓN`,
+            text: `¿ESTA USTED SEGURO DE QUE DESEA SALIR DE LA SESIÓN?`,
+            type: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            cancelButtonText: 'NO',
+            confirmButtonText: 'SI'
+        }).then((result) => {
+            if (result.value) {
+                handleDisconnection(true)
+                window.location.replace('/');
+
+            }
+        }).catch((e) => {
+            console.log(e)
+        })
+    }
+
+    function endSession(){
+    <% if (isRoomCreator) { %>
+        try {
+            Swal.fire({
+                title: `TERMINAR SESIÓN`,
+                text: `¿ESTA USTED SEGURO DE QUE DESEA TERMINAR LA SESIÓN?`,
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                cancelButtonText: 'NO',
+                allowOutsideClick: false,
+                confirmButtonText: 'SI'
+            }).then((result) => {
+                if (result.value) {
+                    socket.emit('end_session',ROOM_ID);
+                    const url = window.location.origin+'/api/rooms/'+ROOM_ID;
+                    $.ajax({
+                        url: url,
+                        method: 'DELETE',
+                        success: function (res) {
+                            if(res){
+                                Swal.fire({
+                                    title: `SESIÓN FINALIZADA`,
+                                    html:'SERA REDIRIGIDO A LA PÁGINA PRINCIPAL EN <strong></strong> SEGUNDOS.<br/><br/>' +
+                                        '',
+                                    timer: 5000,
+                                    willOpen() {
+                                        Swal.showLoading()
+                                        timerInterval = setInterval(() => {
+                                            Swal.getHtmlContainer().querySelector('strong')
+                                                .textContent = (Swal.getTimerLeft() / 1000)
+                                                .toFixed(0)
+                                        }, 100)
+                                    },
+                                    willClose() {
+                                        clearInterval(timerInterval);
+                                        window.location.assign('/');
+                                    },
+                                    type: 'warning',
+                                    showCancelButton: false,
+                                    confirmButtonColor: '#3085d6',
+                                    allowOutsideClick: false,
+                                    confirmButtonText: 'PÁGINA PRINCIPAL'
+                                }).then((result) => {
+                                    if (result.value) {
+                                        window.location.assign('/');
+                                    }
+                                }).catch((e) => {
+                                    console.log(e)
+                                })
+                            }
+                        },
+                        error: function (data, textStatus, jqXHR) {
+                            console.log(data, textStatus, jqXHR);
+                        }
+                    })
+                }
+            }).catch((e) => {
+                console.log(e)
+            })
+
+        }catch(err){
+            console.error(err);
+            toastr.error("error")
+        }
+    <% }else{ %>
+        Swal.fire({
+            title: `SESIÓN FINALIZADA`,
+            html:'SERA REDIRIGIDO A LA PÁGINA PRINCIPAL EN <strong></strong> SECONDS.<br/><br/>' +
+                '',
+            timer: 5000,
+            willOpen() {
+                Swal.showLoading()
+                timerInterval = setInterval(() => {
+                    Swal.getHtmlContainer().querySelector('strong')
+                        .textContent = (Swal.getTimerLeft() / 1000)
+                        .toFixed(0)
+                }, 100)
+            },
+            willClose() {
+                clearInterval(timerInterval);
+                window.location.assign('/');
+            },
+            type: 'warning',
+            showCancelButton: false,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            allowOutsideClick: false,
+            confirmButtonText: 'PÁGINA PRINCIPAL'
+        }).then((result) => {
+            if (result.value) {
+                window.location.assign('/');
+            }
+        }).catch((e) => {
+            console.log(e)
+        })
+    <% } %>
+    }
+</script>

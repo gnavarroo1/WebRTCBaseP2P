@@ -1,0 +1,9 @@
+
+<div class="hidden fixed top-0 right-0 px-6 py-4 sm:block">
+    <% if (!logged) { %>
+            <a href="/sign-up" class="text-sm text-gray-700 underline">Sign Up</a>
+            <a href="/login" class="text-sm text-gray-700 underline">Log In</a>
+    <% } else { %>
+            <a onclick="logout()" class="text-sm text-gray-700 underline">Log Out</a>
+    <% }%>
+</div>

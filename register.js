@@ -4,7 +4,7 @@ const mainTSConfig = require('./tsconfig.json');
 const testTSConfig = require('./tests/tsconfig.json');
 
 tsConfigPaths.register({
-    baseUrl: './tests',
+    baseUrl: 'tests/',
     paths: {
         ...mainTSConfig.compilerOptions.paths,
         ...testTSConfig.compilerOptions.paths
@@ -13,7 +13,5 @@ tsConfigPaths.register({
 
 
 tsNode.register({
-    files: true,
-    transpileOnly: true,
     project: './tests/tsconfig.json'
 });
