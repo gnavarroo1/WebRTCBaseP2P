@@ -2,7 +2,7 @@ import * as webdriver from 'selenium-webdriver';
 import * as fs from 'fs';
 import * as chrome from 'selenium-webdriver/chrome'
 import * as edge from 'selenium-webdriver/edge'
-import 'utility';
+import '@my-org/WebRTCBaseP2P/tests';
 import {should} from "chai";
 import {describe,before, after,afterEach, it } from 'mocha';
 should();

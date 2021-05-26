@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as chrome from 'selenium-webdriver/chrome'
 import {should} from "chai";
 import {describe,before, after,afterEach, it,options } from 'mocha';
-import 'utility';
+import '@my-org/WebRTCBaseP2P/tests';
 should();
 describe.skip('HU01- Como usuario deseo poder crear una sala  para poder sostener una conferencia con otros usuarios.', function(){
     let driver;

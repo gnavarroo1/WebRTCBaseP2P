@@ -4,9 +4,9 @@ import * as chrome from 'selenium-webdriver/chrome'
 
 import {should} from "chai";
 import {describe,before, after,afterEach, it } from 'mocha';
-import {Room} from "../src/models/room.model";
-import {User} from "../src/models/user.model";
-import 'utility';
+import {Room} from "../../src/models/room.model";
+import {User} from "../../src/models/user.model";
+import '@my-org/WebRTCBaseP2P/tests';
 import * as edge from "selenium-webdriver/edge";
 should();
 

@@ -4,13 +4,13 @@ import * as chrome from 'selenium-webdriver/chrome'
 
 import {should} from "chai";
 import {describe,before, after,afterEach, it } from 'mocha';
-import {Room} from "../src/models/room.model";
-import {User} from "../src/models/user.model";
-import 'utility';
+import {Room} from "../../src/models/room.model";
+import {User} from "../../src/models/user.model";
+import '@my-org/WebRTCBaseP2P/tests';
 import * as edge from "selenium-webdriver/edge";
 should();
 
-describe.skip('HU23 - Como usuario registrado de la plataforma web deseo una pantalla de inicio de sesión para poder ingresar con mi cuenta.', function(){
+describe('HU23 - Como usuario registrado de la plataforma web deseo una pantalla de inicio de sesión para poder ingresar con mi cuenta.', function(){
     let driver;
     this.timeout(60000);
 
@@ -91,28 +91,21 @@ describe.skip('HU23 - Como usuario registrado de la plataforma web deseo una pan
     })
 
     describe("HU22- Escenario 1", () => {
-        let error_message = "Error en la Creación de usuario.";
-        let error_firstname= "T";
-        let error_lastname = "L";
+        let error_message = "usuario o contraseña invalida.";
+
         let error_username = "user";
         let error_password = '1234567'
-        let error_email= "a@b"
+
         before(async ()=> {
-            driver.get('http://localhost:5000/sign-up').then(()=>{
+            driver.get('http://localhost:5000/login').then(()=>{
 
             });
         })
         it('Deberia mostrar un mensaje de error', function () {
             return driver.wait(until.elementIsVisible(driver.findElement(By.id("btnSubmit"))),10000).then(async (button) => {
                 // console.log(button);
-                let element_fname = await driver.findElement(By.id('firstname'));
-                await element_fname.sendKeys(error_firstname)
-                let element_lname = await driver.findElement(By.id('lastname'));
-                await element_lname.sendKeys(error_lastname)
                 let element_uname = await driver.findElement(By.id('username'));
                 await element_uname.sendKeys(error_username)
-                let element_email = await driver.findElement(By.id('email'));
-                await element_email.sendKeys(error_email)
                 let element_password = await driver.findElement(By.id('password'));
                 await element_password.sendKeys(error_password)
                 button.click();
@@ -120,6 +113,7 @@ describe.skip('HU23 - Como usuario registrado de la plataforma web deseo una pan
                 return driver.wait(until.elementLocated(By.xpath("//*[@id=\"toast-container\"]/div/div")),8000).then(async (element)=>{
                     // console.log(element);
                     let value = await element.getText()
+                    console.log(value)
                     value.should.equal(error_message);
                 })
             })
@@ -129,23 +123,26 @@ describe.skip('HU23 - Como usuario registrado de la plataforma web deseo una pan
     describe("HU23- Escenario 1", () => {
         let username = "username";
         let password = '12345678';
-
         before(()=> {
-            driver.get('http://localhost:5000/sign-up').then(()=>{
+            driver.get('http://localhost:5000/login').then(()=>{
 
             });
         })
-        it('Deberia mostrar un mensaje de éxito', function () {
+        it('Deberia redirigir a la pagina principal y mostrar la opcion de logout', function () {
             return driver.wait(until.elementIsVisible(driver.findElement(By.id("btnSubmit"))),10000).then(async (button) => {
                 // console.log(button);
                 let element_uname = await driver.findElement(By.id('username'));
                 await element_uname.sendKeys(username)
-
                 let element_password = await driver.findElement(By.id('password'));
                 await element_password.sendKeys(password)
                 button.click();
-                await new Promise(resolve => setTimeout(resolve, 1000));
-
+                await new Promise(resolve => setTimeout(resolve, 5000));
+                await driver.wait(until.elementIsVisible(driver.findElement(By.xpath('//*[@id="container"]/div[1]/a'))),10000).then(async (href) => {
+                    let url = await driver.getCurrentUrl();
+                    let text = await href.getText();
+                    url.should.equal('http://localhost:5000/');
+                    text.should.equal('Log Out')
+                })
             })
 
         })
