@@ -138,7 +138,7 @@ describe.skip('HU08 - Como usuario creador de la sala deseo que 3 o más usuario
             driver2.quit();
             driver3.quit();
 
-            mongoose.disconnect();
+            // mongoose.disconnect();
             done();
         });
 

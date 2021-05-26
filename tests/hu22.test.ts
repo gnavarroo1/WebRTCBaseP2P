@@ -61,21 +61,15 @@ describe('HU22 - Como visitante de la plataforma web deseo poder registrarme usa
     before( async() =>{
         let mongoUrl = process.env.MONGO_DB_URI;
         // console.log(mongoUrl)
-        await mongoose.connect(mongoUrl,{useNewUrlParser: true, useCreateIndex: true, useUnifiedTopology: true}).then(
-            () => { /** ready to use. The `mongoose.connect()` promise resolves to undefined. */
-            console.log('CONECTADO A DB')
-
-            },
-
-        ).catch(err => {
-            console.log(`MongoDB connection error. Please make sure MongoDB is running. ${err}`);
-        });
-        try {
-            await mongoose.connection.db.dropCollection('rooms');
-            await mongoose.connection.db.dropCollection('users');
-        } catch (e) {
-            console.log(e);
-        }
+        // await mongoose.connect(mongoUrl,{useNewUrlParser: true, useCreateIndex: true, useUnifiedTopology: true}).then(
+        //     () => { /** ready to use. The `mongoose.connect()` promise resolves to undefined. */
+        //     console.log('CONECTADO A DB')
+        //
+        //     },
+        //
+        // ).catch(err => {
+        //     console.log(`MongoDB connection error. Please make sure MongoDB is running. ${err}`);
+        // });
 
         driver = new webdriver.Builder().withCapabilities(webdriver.Capabilities.chrome()).forBrowser('chrome').setChromeOptions(setOptionsChrome()).build();
         driver.get('http://localhost:5000').then(()=>{
@@ -103,6 +97,7 @@ describe('HU22 - Como visitante de la plataforma web deseo poder registrarme usa
     })
     after(function(done){
         driver.quit().then(function(){
+            // mongoose.disconnect();
             done()
         });
 
@@ -110,27 +105,73 @@ describe('HU22 - Como visitante de la plataforma web deseo poder registrarme usa
 
     describe("HU22- Escenario 1", () => {
         let error_message = "Error en la Creación de usuario.";
-        let error_first_name= "T";
-        let error_last_name = "L";
+        let error_firstname= "T";
+        let error_lastname = "L";
         let error_username = "user";
-        let error_password = '12345678'
-        let error_email= "a@b.c"
+        let error_password = '1234567'
+        let error_email= "a@b"
         before(async ()=> {
             driver.get('http://localhost:5000/sign-up').then(()=>{
 
             });
         })
-        it('Deberia mostrar un mensaje de error', async function () {
-
+        it('Deberia mostrar un mensaje de error', function () {
+            return driver.wait(until.elementIsVisible(driver.findElement(By.id("btnSubmit"))),10000).then(async (button) => {
+                // console.log(button);
+                let element_fname = await driver.findElement(By.id('firstname'));
+                await element_fname.sendKeys(error_firstname)
+                let element_lname = await driver.findElement(By.id('lastname'));
+                await element_lname.sendKeys(error_lastname)
+                let element_uname = await driver.findElement(By.id('username'));
+                await element_uname.sendKeys(error_username)
+                let element_email = await driver.findElement(By.id('email'));
+                await element_email.sendKeys(error_email)
+                let element_password = await driver.findElement(By.id('password'));
+                await element_password.sendKeys(error_password)
+                button.click();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                return driver.wait(until.elementLocated(By.xpath("//*[@id=\"toast-container\"]/div/div")),8000).then(async (element)=>{
+                    // console.log(element);
+                    let value = await element.getText()
+                    value.should.equal(error_message);
+                })
+            })
         })
+
     });
     describe("HU22- Escenario 2", () => {
-        let success_message = "let success_message = \"\";";
+        let success_message = "Creación de usuario se realizó con exito.";
+        let firstname= "Test";
+        let lastname = "User";
+        let username = "username";
+        let password = '12345678';
+        let email= "test@user.com";
         before(()=> {
+            driver.get('http://localhost:5000/sign-up').then(()=>{
 
+            });
         })
         it('Deberia mostrar un mensaje de éxito', function () {
-
+            return driver.wait(until.elementIsVisible(driver.findElement(By.id("btnSubmit"))),10000).then(async (button) => {
+                // console.log(button);
+                let element_fname = await driver.findElement(By.id('firstname'));
+                await element_fname.sendKeys(firstname)
+                let element_lname = await driver.findElement(By.id('lastname'));
+                await element_lname.sendKeys(lastname)
+                let element_uname = await driver.findElement(By.id('username'));
+                await element_uname.sendKeys(username)
+                let element_email = await driver.findElement(By.id('email'));
+                await element_email.sendKeys(email)
+                let element_password = await driver.findElement(By.id('password'));
+                await element_password.sendKeys(password)
+                button.click();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                return driver.wait(until.elementLocated(By.xpath("//*[@id=\"toast-container\"]/div/div")),8000).then(async (element)=>{
+                    // console.log(element);
+                    let value = await element.getText()
+                    value.should.equal(success_message);
+                })
+            })
 
         })
     });

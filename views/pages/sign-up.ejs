@@ -74,7 +74,7 @@
                 </div>
                 <br>
                 <div class="col-12">
-                    <button class="btn btn-primary" type="submit">Submit form</button>
+                    <button class="btn btn-primary" id="btnSubmit" type="submit">Submit form</button>
                     <button class="btn btn-danger" onclick="window.location.assign('/')" type="button">Cancel</button>
                 </div>
 
@@ -107,13 +107,13 @@
                     email: $("#email").val(),
                     password: $("#password").val()
                 },success: function (res) {
-                    toastr.success('Creación de usuario se realizó con exito.')
+                    toastr.success('Creación de usuario se realizó con exito.','',{timeOut: 45000})
                     setTimeout(()=>{
                         window.location.assign('/')
                     },9000)
                 },
                 error: function (data, textStatus, jqXHR) {
-                    toastr.error('Error en la Creación de usuario.')
+                    toastr.error('Error en la Creación de usuario.','',{timeOut: 45000})
                     console.log(data, textStatus, jqXHR);
                     console.log(data.responseJSON);
                     handleErrors(data.responseJSON);

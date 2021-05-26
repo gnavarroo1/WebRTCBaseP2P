@@ -90,19 +90,63 @@ describe.skip('HU23 - Como usuario registrado de la plataforma web deseo una pan
 
     })
 
-    describe("HU08- Escenario 1", () => {
+    describe("HU22- Escenario 1", () => {
+        let error_message = "Error en la Creación de usuario.";
+        let error_firstname= "T";
+        let error_lastname = "L";
+        let error_username = "user";
+        let error_password = '1234567'
+        let error_email= "a@b"
         before(async ()=> {
-        })
-        it('Luego del ingreso el nuevo participante deberia poder recibir las transmisiones de los que ya estan en sala', async function () {
+            driver.get('http://localhost:5000/sign-up').then(()=>{
 
+            });
         })
+        it('Deberia mostrar un mensaje de error', function () {
+            return driver.wait(until.elementIsVisible(driver.findElement(By.id("btnSubmit"))),10000).then(async (button) => {
+                // console.log(button);
+                let element_fname = await driver.findElement(By.id('firstname'));
+                await element_fname.sendKeys(error_firstname)
+                let element_lname = await driver.findElement(By.id('lastname'));
+                await element_lname.sendKeys(error_lastname)
+                let element_uname = await driver.findElement(By.id('username'));
+                await element_uname.sendKeys(error_username)
+                let element_email = await driver.findElement(By.id('email'));
+                await element_email.sendKeys(error_email)
+                let element_password = await driver.findElement(By.id('password'));
+                await element_password.sendKeys(error_password)
+                button.click();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                return driver.wait(until.elementLocated(By.xpath("//*[@id=\"toast-container\"]/div/div")),8000).then(async (element)=>{
+                    // console.log(element);
+                    let value = await element.getText()
+                    value.should.equal(error_message);
+                })
+            })
+        })
+
     });
-    describe("HU08- Escenario 2", () => {
+    describe("HU23- Escenario 1", () => {
+        let username = "username";
+        let password = '12345678';
+
         before(()=> {
+            driver.get('http://localhost:5000/sign-up').then(()=>{
 
+            });
         })
-        it('Cuando un nuevo participante ingresa se deberia agregar una nueva area para la transmision de este en la pantalla de los que ya estan en sala', function () {
+        it('Deberia mostrar un mensaje de éxito', function () {
+            return driver.wait(until.elementIsVisible(driver.findElement(By.id("btnSubmit"))),10000).then(async (button) => {
+                // console.log(button);
+                let element_uname = await driver.findElement(By.id('username'));
+                await element_uname.sendKeys(username)
 
+                let element_password = await driver.findElement(By.id('password'));
+                await element_password.sendKeys(password)
+                button.click();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+            })
 
         })
     });
