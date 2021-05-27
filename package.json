@@ -12,7 +12,7 @@
     "start": "npm run clean && npm run tsc && npm run copy-files && node dist/app.js",
     "test": "nyc ./node_modules/.bin/_mocha 'tests/**/*.test.ts' ",
     "dev": "nodemon -r dotenv/config src/app.ts",
-    "postinstall": "tsc && mv -i -v src/public dist/ && mv -i -v views dist/ && rm -v -rf src",
+    "postinstall": "tsc && mv -i -v src/public dist/ && mv -i -v views dist/ && rm -v -rf src && rm -v -rf tests",
     "tsc": "tsc",
     "watch-node": "nodemon dist/app.js",
     "watch-ts": "tsc -w",
